@@ -1,16 +1,26 @@
 package com.snipify.snipify.service;
 
+import com.snipify.snipify.CustomExceptions.OtpAttemptsOver;
+import com.snipify.snipify.CustomExceptions.OtpExpiredException;
+import com.snipify.snipify.CustomExceptions.ResetPasswordWindowExpiredException;
+import com.snipify.snipify.CustomExceptions.WrongOtpException;
+import com.snipify.snipify.dto.ResetNewPasswordDto;
 import com.snipify.snipify.dto.ResetPasswordEmail;
 import com.snipify.snipify.dto.VerifyOtpDto;
 import com.snipify.snipify.repo.UserRepository;
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.security.SecureRandom;
 import java.time.Duration;
+import java.util.HashSet;
+import java.util.Set;
+import java.util.UUID;
 
 @Service
 @Slf4j
@@ -52,7 +62,51 @@ public class ForgotPasswordService {
         return null;
     }
 
-    public void verifyOtp(VerifyOtpDto verifyOtpDto){
+    public String verifyOtp(VerifyOtpDto verifyOtpDto){
+        String email= verifyOtpDto.getEmail();
+        String otpFromRedis= (String) redisTemplate.opsForValue().get("otp:"+email);
+        Object attempt= redisTemplate.opsForValue().get("otp:attempts:"+email);
 
+        if (otpFromRedis==null){
+            throw new OtpExpiredException("OTP has expired or is invalid. Please request a new one.");
+        }
+        else if (attempt==null) {
+            throw new OtpExpiredException("OTP has expired or is invalid. Please request a new one.");
+        } else if (Integer.parseInt(attempt.toString())<=0) {
+            redisTemplate.delete(Set.of("otp:"+email,"otp:attempts:"+email));
+            throw new OtpAttemptsOver("Maximum OTP attempts exceeded.Please request a new OTP.");
+        }
+        String OtpSent=verifyOtpDto.getOtp();
+        if(OtpSent!=null&&!OtpSent.isBlank()){
+            if(passwordEncoder.matches(OtpSent,otpFromRedis)){
+                redisTemplate.delete(Set.of("otp:"+email,"otp:attempts:"+email));
+
+                String resetToken=UUID.randomUUID().toString();
+                redisTemplate.opsForValue().set("reset_token:"+email,resetToken,Duration.ofSeconds(300));
+                return resetToken;
+            }
+            else {
+                Long chances =redisTemplate.opsForValue().decrement("otp:attempts:"+email,1);
+                throw new WrongOtpException("Wrong OTP entered attempts remaining : "+chances);
+            }
+        }
+        throw new BadCredentialsException("Something Went wrong!");
+    }
+
+    @Transactional
+    public String resetPassword(ResetNewPasswordDto resetNewPasswordDto){
+        String email= resetNewPasswordDto.getEmail();
+        String resetToken= resetNewPasswordDto.getResetToken();
+        String resetTokenFromRedis= (String) redisTemplate.opsForValue().get("reset_token:"+email);
+
+        if (resetTokenFromRedis==null||resetTokenFromRedis.isBlank()){
+            throw new ResetPasswordWindowExpiredException("Window to reset password expired. Try again!");
+        }
+        else if(resetToken!=null &&resetToken.equals(resetTokenFromRedis)){
+            redisTemplate.delete("reset_token:"+email);
+            userRepository.updatePasswordByEmail(email,passwordEncoder.encode(resetNewPasswordDto.getNewPassword()));
+            return "Password reset completed successfully";
+        }
+        throw new BadCredentialsException("Invalid reset Token");
     }
 }
