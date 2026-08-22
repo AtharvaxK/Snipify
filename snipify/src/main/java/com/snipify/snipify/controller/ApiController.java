@@ -1,13 +1,16 @@
 package com.snipify.snipify.controller;
 
 import com.snipify.snipify.dto.ApiKeyResponseDto;
+import com.snipify.snipify.model.User;
 import com.snipify.snipify.service.ApiService;
 import com.snipify.snipify.service.UserDetailsImpl;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -16,9 +19,16 @@ public class ApiController {
 
     private final ApiService apiService;
 
-    public ResponseEntity<ApiKeyResponseDto> generateApiKey(@AuthenticationPrincipal UserDetailsImpl userDetails){
-        ApiKeyResponseDto apiKeyResponseDto=new ApiKeyResponseDto();
+    @PostMapping("/generate-api-key")
+    public ResponseEntity<ApiKeyResponseDto> generateApiKey(@AuthenticationPrincipal UserDetailsImpl userDetails, HttpServletRequest httpServletRequest){
 
-        return new ResponseEntity<>(apiKeyResponseDto, HttpStatus.OK);
+
+        if (userDetails!=null) {
+            ApiKeyResponseDto apiKeyResponseDto=apiService.generateApi_key(userDetails.getUser());
+            return new ResponseEntity<>(apiKeyResponseDto,HttpStatus.OK);
+        }
+
+
+        return new ResponseEntity<>( HttpStatus.UNAUTHORIZED);
     }
 }

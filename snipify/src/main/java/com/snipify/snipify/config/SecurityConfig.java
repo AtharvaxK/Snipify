@@ -1,11 +1,7 @@
 package com.snipify.snipify.config;
 
 import com.snipify.snipify.Enums.Roles;
-import com.snipify.snipify.security.JwtAuthenticationFilter;
-import com.snipify.snipify.security.Oauth2SuccessHandler;
-
-import com.snipify.snipify.security.RateLimiter;
-import com.snipify.snipify.security.UserDetailsServiceImpl;
+import com.snipify.snipify.security.*;
 
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -37,6 +33,7 @@ public class SecurityConfig {
 
     private final RateLimiter rateLimiter;
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    private final ApiKeyFilter apiKeyFilter;
 
 
 //    @Bean
@@ -77,12 +74,15 @@ public class SecurityConfig {
                         .requestMatchers("/{shorturl}").permitAll()
                         .requestMatchers("/{subdomain}/{shorturl}").permitAll()
                         .requestMatchers("/mail/**").permitAll()
+                        .requestMatchers("/generate-api-key").authenticated()
 
-                        .anyRequest().authenticated()
+
                 );
         http.authenticationProvider(daoAuthenticationProvider());
         http.addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+        http.addFilterBefore(apiKeyFilter, UsernamePasswordAuthenticationFilter.class);
         http.addFilterBefore(rateLimiter, UsernamePasswordAuthenticationFilter.class);
+
         http.oauth2Login(oauth2->oauth2
                 .failureHandler(
                 (request, response, exception) ->{
@@ -93,7 +93,7 @@ public class SecurityConfig {
                 .successHandler(successHandler));
 
 
-        http.sessionManagement(session->session.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED));
+        http.sessionManagement(session->session.sessionCreationPolicy(SessionCreationPolicy.STATELESS));
         return http.build();
     }
 }

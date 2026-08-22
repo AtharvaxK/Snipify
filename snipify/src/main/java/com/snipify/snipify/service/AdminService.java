@@ -4,7 +4,6 @@ import com.snipify.snipify.CustomExceptions.UserNotFoundException;
 import com.snipify.snipify.dto.AdminDashboardDTO;
 import com.snipify.snipify.dto.UserDashboardDto;
 import com.snipify.snipify.dto.UserInfoDto;
-import com.snipify.snipify.model.ClickAnalytics;
 import com.snipify.snipify.model.User;
 import com.snipify.snipify.repo.ClickAnalyticsRepository;
 import com.snipify.snipify.repo.UrlRepository;

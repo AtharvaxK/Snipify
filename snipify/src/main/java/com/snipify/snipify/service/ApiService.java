@@ -4,6 +4,7 @@ import com.snipify.snipify.Enums.Status;
 import com.snipify.snipify.dto.ApiKeyResponseDto;
 import com.snipify.snipify.model.API_User;
 import com.snipify.snipify.model.User;
+import com.snipify.snipify.repo.API_UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.keygen.Base64StringKeyGenerator;
 import org.springframework.stereotype.Service;
@@ -19,7 +20,7 @@ import java.util.UUID;
 @Service
 @RequiredArgsConstructor
 public class ApiService {
-
+    private final API_UserRepository apiUserRepository;
     public ApiKeyResponseDto generateApi_key(User authenticatedUser)  {
 
         String apiKey="snipify/"+new Base64StringKeyGenerator(32).generateKey();
@@ -38,8 +39,11 @@ public class ApiService {
         catch (NoSuchAlgorithmException e){
             throw new RuntimeException("SHA-256 algorithm not found", e);
         }
+        apiUserRepository.save(apiUser);
         ApiKeyResponseDto apiKeyResponseDto=new ApiKeyResponseDto();
         apiKeyResponseDto.setApiKey(apiKey);
+
+
 
         return apiKeyResponseDto;
     }
