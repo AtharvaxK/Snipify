@@ -1,10 +1,8 @@
 package com.snipify.snipify.controller;
 
-import com.snipify.snipify.dto.LoginRequestDto;
-import com.snipify.snipify.dto.LoginResponseDto;
-import com.snipify.snipify.dto.SignupRequestDto;
-import com.snipify.snipify.dto.SignupResponseDto;
+import com.snipify.snipify.dto.*;
 import com.snipify.snipify.security.AuthService;
+import com.snipify.snipify.service.ForgotPasswordService;
 import lombok.AllArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -19,7 +17,8 @@ import org.springframework.web.bind.annotation.RestController;
 @AllArgsConstructor
 public class AuthController {
 
-    private AuthService authService;
+    private final AuthService authService;
+    private final ForgotPasswordService forgotPasswordService;
 
     @PostMapping("/signup")
     public ResponseEntity<SignupResponseDto>signup(@RequestBody SignupRequestDto signupRequestDto){
@@ -41,4 +40,29 @@ public class AuthController {
             return new ResponseEntity<>(HttpStatus.UNAUTHORIZED);
         }
     }
+
+    @PostMapping("/forgotPassword")
+    public ResponseEntity<ResetPasswordOtpResponse> sendOtp(@RequestBody ResetPasswordEmail resetPasswordEmail){
+        ResetPasswordOtpResponse response=forgotPasswordService.forgotPassword(resetPasswordEmail);
+
+        if (response==null){
+            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+        }
+        return new ResponseEntity<>(response,HttpStatus.OK);
+    }
+
+    @PostMapping("/verifyOtp")
+    public ResponseEntity<OtpResetTokenDto> verifyOtp(@RequestBody VerifyOtpRequestDto verifyOtpDto){
+
+        OtpResetTokenDto otpResetTokenDto=forgotPasswordService.verifyOtp(verifyOtpDto);
+        return new ResponseEntity<>(otpResetTokenDto,HttpStatus.OK);
+    }
+
+    @PostMapping("/resetPassword")
+    public ResponseEntity<String> resetPassword(@RequestBody ResetNewPasswordDto resetNewPasswordDto) {
+        String resultMessage = forgotPasswordService.resetPassword(resetNewPasswordDto);
+        return ResponseEntity.ok(resultMessage);
+    }
+
+
 }

@@ -4,9 +4,7 @@ import com.snipify.snipify.CustomExceptions.OtpAttemptsOver;
 import com.snipify.snipify.CustomExceptions.OtpExpiredException;
 import com.snipify.snipify.CustomExceptions.ResetPasswordWindowExpiredException;
 import com.snipify.snipify.CustomExceptions.WrongOtpException;
-import com.snipify.snipify.dto.ResetNewPasswordDto;
-import com.snipify.snipify.dto.ResetPasswordEmail;
-import com.snipify.snipify.dto.VerifyOtpDto;
+import com.snipify.snipify.dto.*;
 import com.snipify.snipify.repo.UserRepository;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
@@ -18,7 +16,6 @@ import org.springframework.stereotype.Service;
 
 import java.security.SecureRandom;
 import java.time.Duration;
-import java.util.HashSet;
 import java.util.Set;
 import java.util.UUID;
 
@@ -31,7 +28,7 @@ public class ForgotPasswordService {
     private final PasswordEncoder passwordEncoder;
     private final RedisTemplate<String, Object> redisTemplate;
 
-    public String forgotPassword(ResetPasswordEmail resetPasswordEmail){
+    public ResetPasswordOtpResponse forgotPassword(ResetPasswordEmail resetPasswordEmail){
         boolean userExist=userRepository.existsByEmail(resetPasswordEmail.getEmail());
 
         if (userExist){
@@ -50,7 +47,10 @@ public class ForgotPasswordService {
                     redisTemplate.opsForValue().set(keyForEmail, encodedOtp, Duration.ofSeconds(300));
                     redisTemplate.opsForValue().set(keyForAttempts, 5, Duration.ofSeconds(300));
                 }
-                return generatedString;
+                ResetPasswordOtpResponse response=new ResetPasswordOtpResponse();
+                response.setEmail(resetPasswordEmail.getEmail());
+                response.setOtp(generatedString);
+                return response;
 
             }
             catch (Exception e) {
@@ -62,7 +62,7 @@ public class ForgotPasswordService {
         return null;
     }
 
-    public String verifyOtp(VerifyOtpDto verifyOtpDto){
+    public OtpResetTokenDto verifyOtp(VerifyOtpRequestDto verifyOtpDto){
         String email= verifyOtpDto.getEmail();
         String otpFromRedis= (String) redisTemplate.opsForValue().get("otp:"+email);
         Object attempt= redisTemplate.opsForValue().get("otp:attempts:"+email);
@@ -83,7 +83,9 @@ public class ForgotPasswordService {
 
                 String resetToken=UUID.randomUUID().toString();
                 redisTemplate.opsForValue().set("reset_token:"+email,resetToken,Duration.ofSeconds(300));
-                return resetToken;
+                OtpResetTokenDto otpResetTokenDto=new OtpResetTokenDto();
+                otpResetTokenDto.setResetToken(resetToken);
+                return otpResetTokenDto;
             }
             else {
                 Long chances =redisTemplate.opsForValue().decrement("otp:attempts:"+email,1);
