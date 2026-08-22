@@ -47,6 +47,9 @@ public class User {
     @JsonIgnore
     private List<Url>urls;
 
+    @OneToOne(mappedBy = "user",cascade = CascadeType.ALL,orphanRemoval = true, fetch = FetchType.LAZY)
+    private API_User apiUser;
+
 
 
 }
