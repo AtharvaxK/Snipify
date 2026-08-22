@@ -4,6 +4,7 @@ import com.snipify.snipify.Enums.Roles;
 import com.snipify.snipify.security.JwtAuthenticationFilter;
 import com.snipify.snipify.security.Oauth2SuccessHandler;
 
+import com.snipify.snipify.security.RateLimiter;
 import com.snipify.snipify.security.UserDetailsServiceImpl;
 
 import lombok.AllArgsConstructor;
@@ -34,11 +35,19 @@ public class SecurityConfig {
     private final HandlerExceptionResolver handlerExceptionResolver;
     private final Oauth2SuccessHandler successHandler;
 
+    private final RateLimiter rateLimiter;
+    private final JwtAuthenticationFilter jwtAuthenticationFilter;
 
-    @Bean
-    public JwtAuthenticationFilter jwtAuthenticationFilter(){
-        return new JwtAuthenticationFilter();
-    }
+
+//    @Bean
+//    public JwtAuthenticationFilter jwtAuthenticationFilter(){
+//        return new JwtAuthenticationFilter();
+//    }
+//
+//    @Bean
+//    public RateLimiter rateLimiter(){
+//        return new RateLimiter();
+//    }
 
     @Bean
     public PasswordEncoder passwordEncoder(){
@@ -72,7 +81,8 @@ public class SecurityConfig {
                         .anyRequest().authenticated()
                 );
         http.authenticationProvider(daoAuthenticationProvider());
-        http.addFilterBefore(jwtAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class);
+        http.addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+        http.addFilterBefore(rateLimiter, UsernamePasswordAuthenticationFilter.class);
         http.oauth2Login(oauth2->oauth2
                 .failureHandler(
                 (request, response, exception) ->{
