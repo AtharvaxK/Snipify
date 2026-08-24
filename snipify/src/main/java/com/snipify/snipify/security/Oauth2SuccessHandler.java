@@ -14,7 +14,10 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.http.ResponseCookie;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
@@ -33,6 +36,11 @@ public class Oauth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
     private final OAuthUtil oAuthUtil;
     private final UserRepository userRepository;
     private final ObjectMapper objectMapper =new ObjectMapper();
+    @Value("${app.security.cookie-secure}")
+    private boolean isCookieSecure;
+
+    @Value("${app.frontend.url}")
+    private String frontendUrl;
 
 
     @Override
@@ -76,8 +84,19 @@ public class Oauth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
         String jwt = jwtUtils.generateToken(userDetails);
         LoginResponseDto loginResponseDto = new LoginResponseDto(userDetails.getId(), jwt);
 
-        response.setContentType(MediaType.APPLICATION_JSON_VALUE);
-        response.setStatus(HttpServletResponse.SC_OK);
+        ResponseCookie responseCookie=ResponseCookie.from("jwt",jwt)
+                        .httpOnly(true)
+                                .secure(isCookieSecure)
+                                        .maxAge(24*60*60)
+                                                .path("/")
+                                                        .sameSite("Strict")
+                                                                .build();
+
+        response.addHeader(HttpHeaders.SET_COOKIE,responseCookie.toString());
+        boolean isOnboardingComplete=(user.getPro() != null && user.getPro().getSubdomainName() != null);
+
+        String targetRoute=isOnboardingComplete ? "/dashboard" : "/onboard";
+        getRedirectStrategy().sendRedirect(request, response, frontendUrl + targetRoute);
 
         objectMapper.writeValue(response.getWriter(), loginResponseDto);
 

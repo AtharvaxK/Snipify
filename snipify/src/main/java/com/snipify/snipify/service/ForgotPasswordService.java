@@ -27,11 +27,14 @@ public class ForgotPasswordService {
     private final RedisService redisService;
     private final PasswordEncoder passwordEncoder;
     private final RedisTemplate<String, Object> redisTemplate;
+    private final EmailService emailService;
 
-    public ResetPasswordOtpResponse forgotPassword(ResetPasswordEmail resetPasswordEmail){
+    public String forgotPassword(ResetPasswordEmail resetPasswordEmail){
         boolean userExist=userRepository.existsByEmail(resetPasswordEmail.getEmail());
+        if (!userExist) {
+            return "If an account exists for "+ resetPasswordEmail.getEmail()+", an OTP has been sent.";
+        }
 
-        if (userExist){
             try {
                 SecureRandom secureRandom = new SecureRandom();
 
@@ -43,14 +46,13 @@ public class ForgotPasswordService {
                 String keyForAttempts = "otp:attempts:" + resetPasswordEmail.getEmail();
                 String encodedOtp=passwordEncoder.encode(generatedString);
 
+
                 if(encodedOtp!=null) {
                     redisTemplate.opsForValue().set(keyForEmail, encodedOtp, Duration.ofSeconds(300));
                     redisTemplate.opsForValue().set(keyForAttempts, 5, Duration.ofSeconds(300));
                 }
-                ResetPasswordOtpResponse response=new ResetPasswordOtpResponse();
-                response.setEmail(resetPasswordEmail.getEmail());
-                response.setOtp(generatedString);
-                return response;
+               emailService.sendOtpEmail(resetPasswordEmail.getEmail(),generatedString);
+                return "If an account exists for "+resetPasswordEmail.getEmail()+", an OTP has been sent.";
 
             }
             catch (Exception e) {
@@ -58,8 +60,8 @@ public class ForgotPasswordService {
                 throw new RuntimeException("Could not generate OTP. Please try again.");
             }
 
-        }
-        return null;
+
+
     }
 
     public OtpResetTokenDto verifyOtp(VerifyOtpRequestDto verifyOtpDto){
@@ -96,15 +98,14 @@ public class ForgotPasswordService {
     }
 
     @Transactional
-    public String resetPassword(ResetNewPasswordDto resetNewPasswordDto){
+    public String resetPassword(ResetNewPasswordDto resetNewPasswordDto,String resetTokenFromCookie){
         String email= resetNewPasswordDto.getEmail();
-        String resetToken= resetNewPasswordDto.getResetToken();
         String resetTokenFromRedis= (String) redisTemplate.opsForValue().get("reset_token:"+email);
 
         if (resetTokenFromRedis==null||resetTokenFromRedis.isBlank()){
             throw new ResetPasswordWindowExpiredException("Window to reset password expired. Try again!");
         }
-        else if(resetToken!=null &&resetToken.equals(resetTokenFromRedis)){
+        else if(resetTokenFromCookie != null && resetTokenFromCookie.equals(resetTokenFromRedis)){
             redisTemplate.delete("reset_token:"+email);
             userRepository.updatePasswordByEmail(email,passwordEncoder.encode(resetNewPasswordDto.getNewPassword()));
             return "Password reset completed successfully";

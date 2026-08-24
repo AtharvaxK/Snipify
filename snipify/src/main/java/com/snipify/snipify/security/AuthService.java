@@ -1,11 +1,10 @@
 package com.snipify.snipify.security;
 
+import com.snipify.snipify.CustomExceptions.SubdomainExistsException;
+import com.snipify.snipify.CustomExceptions.UserNameExsitsException;
 import com.snipify.snipify.Enums.AuthProviderTypes;
 import com.snipify.snipify.Enums.Roles;
-import com.snipify.snipify.dto.LoginRequestDto;
-import com.snipify.snipify.dto.LoginResponseDto;
-import com.snipify.snipify.dto.SignupRequestDto;
-import com.snipify.snipify.dto.SignupResponseDto;
+import com.snipify.snipify.dto.*;
 import com.snipify.snipify.model.Pro;
 import com.snipify.snipify.model.User;
 import com.snipify.snipify.repo.ProRepository;
@@ -80,14 +79,42 @@ public class AuthService {
         return new SignupResponseDto(user.getId(),user.getUsername());
     }
 
-    public LoginResponseDto login(LoginRequestDto loginRequestDto){
+    public String login(LoginRequestDto loginRequestDto){
         Authentication authentication=authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(loginRequestDto.getEmail(),loginRequestDto.getPassword()));
         SecurityContextHolder.getContext().setAuthentication(authentication);
 
         UserDetailsImpl userDetails= (UserDetailsImpl) authentication.getPrincipal();
-        String jwtToken=jwtUtils.generateToken(userDetails);
 
-        return new LoginResponseDto(userDetails.getId(),jwtToken);
+
+        return jwtUtils.generateToken(userDetails);
+    }
+
+    @Transactional
+    public int onboard(NewUserSignupForm newUserSignupForm, User user) {
+
+        User dbUser = userRepository.findById(user.getId()).orElseThrow(() -> new RuntimeException("User not found"));
+
+
+        if (!dbUser.getUsername().equals(newUserSignupForm.getUserName()) && 
+            userRepository.existsByUsername(newUserSignupForm.getUserName())) {
+            throw new UserNameExsitsException("User with this Username exists use any other username.");
+        }
+        dbUser.setUsername(newUserSignupForm.getUserName());
+
+        if (proRepository.existsBySubdomainName(newUserSignupForm.getSubdomain())) {
+            throw new SubdomainExistsException("User with this Subdomain exists use any other subdomain.");
+        }
+
+        Pro pro = dbUser.getPro();
+        if (pro == null) {
+            pro = new Pro();
+            pro.setUser(dbUser);
+            dbUser.setPro(pro);
+        }
+        pro.setSubdomainName(newUserSignupForm.getSubdomain());
+        
+        userRepository.save(dbUser);
+        return 1;
     }
 
 

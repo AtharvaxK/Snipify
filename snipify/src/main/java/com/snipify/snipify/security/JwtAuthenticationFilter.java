@@ -35,10 +35,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         try {
             log.info("Request Incoming :" +request.getRequestURI());
 
+
             String jwtToken=jwtUtils.getJwtFromHeader(request);
-
-
-
             if(jwtToken!=null&& jwtUtils.validateToken(jwtToken)){
                 String username=jwtUtils.getUsernameFromJwtToken(jwtToken);
 
@@ -50,6 +48,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
             }
             filterChain.doFilter(request,response);
+
+
         }
         catch (Exception e){
                 log.error("Authentication error on {}: {}", request.getRequestURI(), e.getMessage());

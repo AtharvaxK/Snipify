@@ -5,9 +5,8 @@ import lombok.RequiredArgsConstructor;
 
 @Data
 @RequiredArgsConstructor
-public class ShortenUrlRequest {
-    private String url;
-    private int validTime;
-
+public class NewUserSignupForm {
+    private String userName;
+    private String subdomain;
 
 }

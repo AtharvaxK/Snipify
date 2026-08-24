@@ -70,11 +70,13 @@ public class SecurityConfig {
 
         http.
                 authorizeHttpRequests(auth->auth
-                        .requestMatchers("/api/auth/**").permitAll()
+                        .requestMatchers("/auth/**").permitAll()
                         .requestMatchers("/{shorturl}").permitAll()
                         .requestMatchers("/{subdomain}/{shorturl}").permitAll()
                         .requestMatchers("/mail/**").permitAll()
                         .requestMatchers("/generate-api-key").authenticated()
+                        .requestMatchers("/generate").permitAll()
+                        .anyRequest().authenticated()
 
 
                 );
